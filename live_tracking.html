@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OPENROUTE AI | Real-Time Highway Intelligence & Telemetry Dashboard</title>
+  <meta name="description" content="Production-ready real-time logistics tracking and dynamic rerouting dashboard for Tamil Nadu highways with Leaflet.js.">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet 1.9.4 CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: rgba(15, 23, 42, 0.88);
+      --bg-card-hover: rgba(30, 41, 59, 0.95);
+      --border-subtle: rgba(51, 65, 85, 0.7);
+      --border-focus: #f59e0b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --primary-orange: #f97316;
+      --primary-orange-glow: rgba(249, 115, 22, 0.35);
+      --alternate-blue: #0284c7;
+      --alternate-blue-glow: rgba(2, 132, 199, 0.35);
+      --hazard-red: #ef4444;
+      --hazard-glow: rgba(239, 68, 68, 0.4);
+      --success-green: #10b981;
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: var(--font-sans);
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #app-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* TOP HEADER */
+    header {
+      height: 64px;
+      background: rgba(10, 15, 29, 0.94);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      z-index: 1000;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #ea580c, #f59e0b);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px var(--primary-orange-glow);
+    }
+
+    .brand-icon svg {
+      width: 22px;
+      height: 22px;
+      color: white;
+    }
+
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .brand-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .header-status-group {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #10b981;
+      padding: 5px 12px;
+      border-radius: 9999px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulseAnim 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseAnim {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.3); }
+    }
+
+    /* MAIN MAP VIEWPORT */
+    #map {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: #0b1120;
+      z-index: 10;
+    }
+
+    /* CUSTOM LEAFLET STYLING */
+    .leaflet-container {
+      background: #0b1120 !important;
+      font-family: var(--font-sans) !important;
+    }
+
+    .leaflet-popup-content-wrapper {
+      background: rgba(15, 23, 42, 0.95) !important;
+      backdrop-filter: blur(12px) !important;
+      color: var(--text-main) !important;
+      border: 1px solid var(--border-subtle) !important;
+      border-radius: 14px !important;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.6) !important;
+      padding: 0 !important;
+    }
+
+    .leaflet-popup-content {
+      margin: 12px 16px !important;
+      line-height: 1.4 !important;
+    }
+
+    .leaflet-popup-tip {
+      background: rgba(15, 23, 42, 0.95) !important;
+      border: 1px solid var(--border-subtle) !important;
+    }
+
+    /* FLOATING CONTROL BAR (Top Left) */
+    .floating-controls {
+      position: absolute;
+      top: 80px;
+      left: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .control-card {
+      pointer-events: auto;
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 12px 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 290px;
+      transition: all 0.25s ease;
+    }
+
+    .control-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid transparent;
+      outline: none;
+      user-select: none;
+    }
+
+    .btn-feed-start {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #ffffff;
+      box-shadow: 0 2px 10px rgba(16, 185, 129, 0.25);
+    }
+    .btn-feed-start:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .btn-feed-pause {
+      background: rgba(51, 65, 85, 0.8);
+      border-color: rgba(71, 85, 105, 0.7);
+      color: #cbd5e1;
+    }
+    .btn-feed-pause:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+
+    .btn-roadblock {
+      background: rgba(225, 29, 72, 0.15);
+      border-color: rgba(225, 29, 72, 0.4);
+      color: #fb7185;
+    }
+    .btn-roadblock:hover, .btn-roadblock.active {
+      background: linear-gradient(135deg, #e11d48, #f43f5e);
+      border-color: #f43f5e;
+      color: #ffffff;
+      box-shadow: 0 4px 14px var(--hazard-glow);
+    }
+
+    .btn-speed {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid var(--border-subtle);
+      color: #94a3b8;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      cursor: pointer;
+    }
+    .btn-speed.active {
+      background: #f59e0b;
+      color: #0f172a;
+      border-color: #f59e0b;
+    }
+
+    /* RIGHT TELEMETRY DRAWER */
+    .telemetry-sidebar {
+      position: absolute;
+      top: 80px;
+      right: 20px;
+      width: 360px;
+      max-height: calc(100vh - 100px);
+      z-index: 1000;
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+      padding-bottom: 10px;
+    }
+
+    .sidebar-title {
+      font-size: 0.92rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* VEHICLE TELEMETRY CARD */
+    .vehicle-card {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(51, 65, 85, 0.6);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .vehicle-card:hover {
+      border-color: #475569;
+      background: rgba(30, 41, 59, 0.75);
+    }
+    .vehicle-card.primary {
+      border-left: 4px solid var(--primary-orange);
+    }
+    .vehicle-card.alternate {
+      border-left: 4px solid var(--alternate-blue);
+    }
+
+    .v-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .v-id {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.82rem;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .v-tag {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .v-tag.primary {
+      background: rgba(249, 115, 22, 0.2);
+      color: #fb923c;
+    }
+    .v-tag.alternate {
+      background: rgba(2, 132, 199, 0.2);
+      color: #38bdf8;
+    }
+    .v-tag.rerouting {
+      background: rgba(239, 68, 68, 0.25);
+      color: #f87171;
+      animation: pulseAnim 1.5s infinite;
+    }
+
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      background: rgba(10, 15, 29, 0.6);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-family: var(--font-mono);
+    }
+
+    .tel-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .tel-label {
+      font-size: 0.62rem;
+      color: var(--text-dim);
+      font-family: var(--font-sans);
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .tel-val {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .waypoint-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: #94a3b8;
+    }
+
+    .waypoint-indicator span {
+      color: #f8fafc;
+      font-weight: 600;
+    }
+
+    /* HAZARD LIST */
+    .hazards-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .hazard-item {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 10px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .hazard-item:hover {
+      background: rgba(239, 68, 68, 0.16);
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    /* TOAST ALERT NOTIFICATION */
+    #alert-toast {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      z-index: 2000;
+      background: rgba(185, 28, 28, 0.95);
+      backdrop-filter: blur(14px);
+      border: 1px solid #ef4444;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 14px;
+      box-shadow: 0 12px 36px rgba(239, 68, 68, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #alert-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    /* MAP LEGEND */
+    .map-legend {
+      position: absolute;
+      bottom: 24px;
+      left: 20px;
+      z-index: 1000;
+      background: var(--bg-card);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.72rem;
+      color: #cbd5e1;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color {
+      width: 14px;
+      height: 4px;
+      border-radius: 2px;
+    }
+    .legend-color.orange {
+      background: var(--primary-orange);
+      box-shadow: 0 0 6px var(--primary-orange);
+    }
+    .legend-color.blue {
+      background: var(--alternate-blue);
+      box-shadow: 0 0 6px var(--alternate-blue);
+    }
+    .legend-color.red-dashed {
+      border-top: 2px dashed #ef4444;
+      background: transparent;
+      height: 0;
+    }
+
+    /* CUSTOM SVG VEHICLE MARKERS */
+    .truck-marker-icon {
+      background: transparent;
+      border: none;
+    }
+
+    .truck-pin {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+      transition: transform 0.2s ease;
+      position: relative;
+    }
+
+    .truck-pin.orange {
+      background: linear-gradient(135deg, #ea580c, #f97316);
+      border: 2.5px solid #ffffff;
+      box-shadow: 0 0 20px rgba(249, 115, 22, 0.7);
+    }
+
+    .truck-pin.blue {
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      border: 2.5px solid #ffffff;
+      box-shadow: 0 0 20px rgba(2, 132, 199, 0.7);
+    }
+
+    .truck-pin svg {
+      width: 20px;
+      height: 20px;
+      fill: #ffffff;
+    }
+
+    .truck-pulse {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      opacity: 0.6;
+      animation: truckPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    .truck-pin.orange .truck-pulse { background: rgba(249, 115, 22, 0.5); }
+    .truck-pin.blue .truck-pulse { background: rgba(2, 132, 199, 0.5); }
+
+    @keyframes truckPing {
+      75%, 100% {
+        transform: scale(2);
+        opacity: 0;
+      }
+    }
+
+    /* HAZARD BLINKING ICON */
+    .hazard-marker-icon {
+      background: transparent;
+      border: none;
+    }
+
+    .hazard-pin {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #dc2626;
+      border: 2px solid #fee2e2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.8);
+      animation: hazardBlink 1.2s infinite ease-in-out;
+      cursor: pointer;
+    }
+
+    @keyframes hazardBlink {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px #ef4444); }
+      50% { transform: scale(1.15); filter: drop-shadow(0 0 12px #ef4444); }
+    }
+
+    /* STATION CITY DOTS */
+    .station-marker {
+      background: #0f172a;
+      border: 2px solid #38bdf8;
+      border-radius: 50%;
+      width: 10px;
+      height: 10px;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+    }
+    .station-label {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-subtle);
+      color: #e2e8f0;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* RESPONSIVE DESIGN */
+    @media (max-width: 900px) {
+      .telemetry-sidebar {
+        display: none;
+      }
+      .floating-controls {
+        left: 12px;
+        right: 12px;
+      }
+      .control-card {
+        min-width: unset;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app-container">
+    <!-- TOP NAVIGATION BAR -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
+            <path d="M15 18H9"/>
+            <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/>
+            <circle cx="17" cy="18" r="2"/>
+            <circle cx="7" cy="18" r="2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">
+            OPENROUTE AI
+            <span class="brand-badge">Tamil Nadu</span>
+          </div>
+          <p style="font-size: 0.65rem; color: var(--text-muted); margin-top: -2px;">Real-Time Logistics & Highway Telemetry System</p>
+        </div>
+      </div>
+
+      <div class="header-status-group">
+        <div id="liveWeatherPill" class="status-pill" style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); color: #f59e0b;" title="Live Meteorological Observation (Open-Meteo)">
+          <span id="weatherIcon">⛅</span>
+          <span id="weatherText">WEATHER: 27°C • LIVE RADAR</span>
+        </div>
+        <div class="status-pill">
+          <div class="pulse-dot"></div>
+          <span id="telemetryStatusText">LIVE FEED ACTIVE (60 FPS)</span>
+        </div>
+        <button id="btnSoundToggle" class="btn-speed" title="Sound Effects">
+          🔊 AUDIO ON
+        </button>
+      </div>
+    </header>
+
+    <!-- FLOATING LIVE CONTROL PANEL -->
+    <div class="floating-controls">
+      <div class="control-card">
+        <div class="control-title">
+          <span>Simulation Controls</span>
+          <span id="fpsCounter" style="font-family: var(--font-mono); color: #38bdf8;">60 FPS</span>
+        </div>
+        
+        <div class="btn-group">
+          <button id="btnStartFeed" class="action-btn btn-feed-start">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Start Feed
+          </button>
+          <button id="btnPauseFeed" class="action-btn btn-feed-pause">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            Pause
+          </button>
+        </div>
+
+        <button id="btnSimulateRoadblock" class="action-btn btn-roadblock">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span id="roadblockBtnText">Simulate Roadblock (Vellore)</span>
+        </button>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(51, 65, 85, 0.5); padding-top: 8px;">
+          <span style="font-size: 0.68rem; color: var(--text-dim); font-weight: 700; text-transform: uppercase;">Simulation Rate:</span>
+          <div style="display: flex; gap: 4px;">
+            <button class="btn-speed" data-speed="1">1x</button>
+            <button class="btn-speed active" data-speed="2">2x</button>
+            <button class="btn-speed" data-speed="5">5x</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR TELEMETRY INTELLIGENCE -->
+    <div class="telemetry-sidebar" id="telemetrySidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Active Fleet Telemetry
+        </div>
+        <span style="font-size: 0.65rem; color: #10b981; font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 2px 6px; border-radius: 4px;">2 TRUCKS</span>
+      </div>
+
+      <!-- PRIMARY VEHICLE CARD -->
+      <div class="vehicle-card primary" id="primaryCard" onclick="focusVehicle('primary')">
+        <div class="v-header">
+          <div class="v-id">
+            <span style="color: var(--primary-orange);">●</span>
+            TN-01-EXP-9402
+          </div>
+          <span class="v-tag primary" id="primaryTag">Primary Freight</span>
+        </div>
+        
+        <div class="telemetry-grid">
+          <div class="tel-item">
+            <span class="tel-label">Live Speed</span>
+            <span class="tel-val" id="primarySpeed">64 <span style="font-size:0.65rem; color:var(--text-dim);">km/h</span></span>
+          </div>
+          <div class="tel-item">
+            <span class="tel-label">ETA South</span>
+            <span class="tel-val" id="primaryEta">4h 12m</span>
+          </div>
+          <div class="tel-item">
+            <span class="tel-label">Corridor</span>
+            <span class="tel-val" id="primaryCorridor" style="color: #fb923c;">NH 44/45</span>
+          </div>
+        </div>
+
+        <div class="waypoint-indicator">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Next Hub: <span id="primaryWaypoint">Vellore Junction</span>
+        </div>
+      </div>
+
+      <!-- ALTERNATE VEHICLE CARD -->
+      <div class="vehicle-card alternate" id="alternateCard" onclick="focusVehicle('alternate')">
+        <div class="v-header">
+          <div class="v-id">
+            <span style="color: var(--alternate-blue);">●</span>
+            TN-38-ALT-5120
+          </div>
+          <span class="v-tag alternate">Western Corridor</span>
+        </div>
+        
+        <div class="telemetry-grid">
+          <div class="tel-item">
+            <span class="tel-label">Live Speed</span>
+            <span class="tel-val" id="alternateSpeed">71 <span style="font-size:0.65rem; color:var(--text-dim);">km/h</span></span>
+          </div>
+          <div class="tel-item">
+            <span class="tel-label">ETA South</span>
+            <span class="tel-val" id="alternateEta">5h 40m</span>
+          </div>
+          <div class="tel-item">
+            <span class="tel-label">Corridor</span>
+            <span class="tel-val" style="color: #38bdf8;">NH 544</span>
+          </div>
+        </div>
+
+        <div class="waypoint-indicator">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Next Hub: <span id="alternateWaypoint">Salem Bypass</span>
+        </div>
+      </div>
+
+      <!-- HAZARD MONITOR -->
+      <div class="hazards-section">
+        <div class="section-label">
+          <span>Active Highway Disruptions</span>
+          <span style="color: #ef4444; font-size: 0.65rem;" id="hazardCount">3 ZONES</span>
+        </div>
+
+        <div class="hazard-item" onclick="flyToHazard(12.9165, 79.1325, 'Vellore Bypass')">
+          <div>
+            <div style="font-weight: 700; color: #f87171;">⚠️ Vellore NH 48 Toll Congestion</div>
+            <div style="font-size: 0.65rem; color: var(--text-dim);">Severity: Critical • Primary Route Impacted</div>
+          </div>
+          <button class="btn-speed" style="background: rgba(239,68,68,0.2); color:#fca5a5;">VIEW</button>
+        </div>
+
+        <div class="hazard-item" onclick="flyToHazard(11.9416, 79.8083, 'Puducherry Coast')">
+          <div>
+            <div style="font-weight: 700; color: #f87171;">🌊 Puducherry Coastal Surge</div>
+            <div style="font-size: 0.65rem; color: var(--text-dim);">East Coast Road Caution • Slow Speed 40km/h</div>
+          </div>
+          <button class="btn-speed" style="background: rgba(239,68,68,0.2); color:#fca5a5;">VIEW</button>
+        </div>
+
+        <div class="hazard-item" onclick="flyToHazard(11.0168, 76.9558, 'Coimbatore Bypass')">
+          <div>
+            <div style="font-weight: 700; color: #f87171;">🚧 Coimbatore Bypass Maintenance</div>
+            <div style="font-size: 0.65rem; color: var(--text-dim);">Flyover Single Lane • Minor Delay (+10m)</div>
+          </div>
+          <button class="btn-speed" style="background: rgba(239,68,68,0.2); color:#fca5a5;">VIEW</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DYNAMIC EMERGENCY ALERT TOAST -->
+    <div id="alert-toast">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div>
+        <div style="font-size: 0.88rem; font-weight: 800;">CORRIDOR ROADBLOCK DETECTED!</div>
+        <div id="alertToastDesc" style="font-size: 0.72rem; opacity: 0.9;">Vellore sector blocked. Dynamic rerouting initiated via Salem NH 544.</div>
+      </div>
+    </div>
+
+    <!-- MAP LEGEND -->
+    <div class="map-legend">
+      <div class="legend-item">
+        <div class="legend-color orange"></div>
+        <span>Primary (Chennai ➔ Madurai ➔ South)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color blue"></div>
+        <span>Alternate (Bengaluru ➔ Salem ➔ Coimbatore ➔ South)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color red-dashed"></div>
+        <span>Blocked / Incident Zone</span>
+      </div>
+    </div>
+
+    <!-- MAP CONTAINER -->
+    <div id="map"></div>
+  </div>
+
+  <!-- Leaflet 1.9.4 JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <script>
+    /* =========================================================================
+       1. HIGHWAY WAYPOINTS & CORRIDOR GEOMETRIES
+       Accurate geographical waypoints across Tamil Nadu & South India
+    ========================================================================= */
+
+    // Primary Route (Orange): Chennai -> Vellore -> Tiruvannamalai -> Trichy -> Madurai -> Southern Hub (Kanniyakumari)
+    const PRIMARY_ROUTE_COORDS = [
+      [13.0827, 80.2707], // Chennai
+      [12.9165, 79.1325], // Vellore (NH 48)
+      [12.2253, 79.0747], // Tiruvannamalai
+      [11.9401, 79.4861], // Villupuram
+      [10.7905, 78.7047], // Tiruchirappalli (Trichy)
+      [9.9252, 78.1198],  // Madurai (NH 44)
+      [8.7139, 77.7567],  // Tirunelveli
+      [8.0883, 77.5385]   // Kanniyakumari (Southern Hub)
+    ];
+
+    // Alternate Route (Blue): Bengaluru -> Hosur -> Dharmapuri -> Salem -> Erode -> Coimbatore -> Thanjavur -> South
+    const ALTERNATE_ROUTE_COORDS = [
+      [12.9716, 77.5946], // Bengaluru
+      [12.7409, 77.8253], // Hosur
+      [12.1211, 78.1582], // Dharmapuri
+      [11.6643, 78.1460], // Salem (NH 44/544 junction)
+      [11.3410, 77.7172], // Erode
+      [11.0168, 76.9558], // Coimbatore Bypass
+      [10.3673, 77.9803], // Dindigul
+      [10.7870, 79.1378], // Thanjavur
+      [9.9252, 78.1198],  // Madurai South Convergence
+      [8.7139, 77.7567],  // Tirunelveli
+      [8.0883, 77.5385]   // Kanniyakumari (Southern Hub)
+    ];
+
+    // Dynamic Rerouting Path (diverts Primary truck from Vellore connector to Salem)
+    const DIVERTER_ROUTE_COORDS = [
+      [12.9165, 79.1325], // Vellore
+      [12.5186, 78.5835], // Tirupattur connector
+      [11.6643, 78.1460], // Joins Salem on Alternate Route
+      [11.3410, 77.7172], // Erode
+      [10.3673, 77.9803], // Dindigul
+      [9.9252, 78.1198],  // Madurai
+      [8.7139, 77.7567],  // Tirunelveli
+      [8.0883, 77.5385]   // Kanniyakumari
+    ];
+
+    // Strategic Disruption Zones
+    const HAZARDS = [
+      {
+        id: 'hazard_vellore',
+        name: 'Vellore Bypass Roadblock',
+        lat: 12.9165,
+        lng: 79.1325,
+        type: 'Freight Gridlock / Toll Malfunction',
+        severity: 'Critical',
+        blocksRoute: 'primary',
+        active: false
+      },
+      {
+        id: 'hazard_puducherry',
+        name: 'Puducherry Coastal Surge',
+        lat: 11.9416,
+        lng: 79.8083,
+        type: 'Monsoon Waterlogging',
+        severity: 'Warning',
+        blocksRoute: null,
+        active: true
+      },
+      {
+        id: 'hazard_coimbatore',
+        name: 'Coimbatore Bypass Flyover Repair',
+        lat: 11.0168,
+        lng: 76.9558,
+        type: 'Single Lane Construction',
+        severity: 'Moderate',
+        blocksRoute: null,
+        active: true
+      }
+    ];
+
+    /* =========================================================================
+       2. LEAFLET MAP INITIALIZATION
+       Centered on Tamil Nadu (lat: 11.1271, lng: 78.6569, zoom: 7)
+    ========================================================================= */
+
+    const map = L.map('map', {
+      center: [11.1271, 78.6569],
+      zoom: 7,
+      minZoom: 6,
+      maxZoom: 18,
+      zoomControl: false
+    });
+
+    // Reposition zoom controls to bottom-right
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    // High performance dark tiles with zero API key errors
+    const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Fallback error handler
+    tileLayer.on('tileerror', function() {
+      // If Carto fails, dynamically switch to standard OpenStreetMap
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+    });
+
+    // Make sure map tiles resize flawlessly
+    setTimeout(() => { map.invalidateSize(); }, 300);
+    window.addEventListener('resize', () => { map.invalidateSize(); });
+
+    /* =========================================================================
+       3. POLYLINES & CORRIDOR LAYERS
+    ========================================================================= */
+
+    // Primary Route (Orange)
+    const primaryPolylineGlow = L.polyline(PRIMARY_ROUTE_COORDS, {
+      color: '#ea580c',
+      weight: 9,
+      opacity: 0.35,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(map);
+
+    const primaryPolyline = L.polyline(PRIMARY_ROUTE_COORDS, {
+      color: '#f97316',
+      weight: 5,
+      opacity: 0.95,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(map);
+
+    // Alternate Route (Blue)
+    const alternatePolylineGlow = L.polyline(ALTERNATE_ROUTE_COORDS, {
+      color: '#0284c7',
+      weight: 9,
+      opacity: 0.35,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(map);
+
+    const alternatePolyline = L.polyline(ALTERNATE_ROUTE_COORDS, {
+      color: '#38bdf8',
+      weight: 5,
+      opacity: 0.95,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(map);
+
+    // Rerouting connector layer (initially hidden)
+    let reroutingPolyline = null;
+
+    /* =========================================================================
+       4. CITY STATION WAYPOINT LABELS
+    ========================================================================= */
+    const STATIONS = [
+      { name: "Chennai", coords: [13.0827, 80.2707] },
+      { name: "Bengaluru", coords: [12.9716, 77.5946] },
+      { name: "Vellore", coords: [12.9165, 79.1325] },
+      { name: "Salem", coords: [11.6643, 78.1460] },
+      { name: "Coimbatore", coords: [11.0168, 76.9558] },
+      { name: "Trichy", coords: [10.7905, 78.7047] },
+      { name: "Madurai", coords: [9.9252, 78.1198] },
+      { name: "Thanjavur", coords: [10.7870, 79.1378] },
+      { name: "Kanniyakumari", coords: [8.0883, 77.5385] }
+    ];
+
+    STATIONS.forEach(st => {
+      const icon = L.divIcon({
+        className: 'station-dot-wrapper',
+        html: `<div class="station-marker"></div><div class="station-label">${st.name}</div>`,
+        iconSize: [20, 20],
+        iconAnchor: [5, 5]
+      });
+      L.marker(st.coords, { icon, interactive: false }).addTo(map);
+    });
+
+    /* =========================================================================
+       5. HAZARD & ALERT SYSTEM
+    ========================================================================= */
+    const hazardMarkers = {};
+
+    function createHazardIcon() {
+      return L.divIcon({
+        className: 'hazard-marker-icon',
+        html: `
+          <div class="hazard-pin">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+        `,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+    }
+
+    HAZARDS.forEach(hazard => {
+      const marker = L.marker([hazard.lat, hazard.lng], {
+        icon: createHazardIcon(),
+        title: hazard.name
+      }).addTo(map);
+
+      marker.bindPopup(`
+        <div style="padding: 10px;">
+          <div style="font-size: 0.72rem; color: #f87171; font-weight: 800; text-transform: uppercase;">⚠️ Highway Alert</div>
+          <div style="font-weight: 800; font-size: 0.92rem; margin: 4px 0; color: #ffffff;">${hazard.name}</div>
+          <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 8px;">${hazard.type}</div>
+          <div style="font-size: 0.7rem; color: var(--text-dim);">Severity: <strong style="color:#ef4444;">${hazard.severity}</strong></div>
+          <button onclick="toggleRoadblockState()" style="margin-top: 8px; width: 100%; background: #ef4444; border:none; color:white; border-radius:6px; padding: 6px; font-weight:700; cursor:pointer;">
+            ${hazard.id === 'hazard_vellore' && isRoadblockActive ? 'Clear Roadblock' : 'Simulate Roadblock'}
+          </button>
+        </div>
+      `);
+
+      hazardMarkers[hazard.id] = marker;
+    });
+
+    /* =========================================================================
+       6. MOVING VEHICLE TELEMETRY & SMOOTH INTERPOLATION
+    ========================================================================= */
+
+    function createTruckIcon(colorClass) {
+      return L.divIcon({
+        className: 'truck-marker-icon',
+        html: `
+          <div class="truck-pin ${colorClass}" id="pin-${colorClass}">
+            <div class="truck-pulse"></div>
+            <svg viewBox="0 0 24 24">
+              <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+            </svg>
+          </div>
+        `,
+        iconSize: [42, 42],
+        iconAnchor: [21, 21]
+      });
+    }
+
+    // Vehicle State Models
+    const vehiclePrimary = {
+      id: 'TN-01-EXP-9402',
+      routeCoords: PRIMARY_ROUTE_COORDS,
+      currentSegment: 0,
+      segmentProgress: 0.05,
+      speedKmh: 64,
+      targetSpeed: 64,
+      isRerouted: false,
+      marker: null,
+      color: 'orange',
+      elementId: 'primary'
+    };
+
+    const vehicleAlternate = {
+      id: 'TN-38-ALT-5120',
+      routeCoords: ALTERNATE_ROUTE_COORDS,
+      currentSegment: 0,
+      segmentProgress: 0.15,
+      speedKmh: 71,
+      targetSpeed: 71,
+      isRerouted: false,
+      marker: null,
+      color: 'blue',
+      elementId: 'alternate'
+    };
+
+    // Instantiate markers
+    vehiclePrimary.marker = L.marker(vehiclePrimary.routeCoords[0], {
+      icon: createTruckIcon('orange'),
+      zIndexOffset: 1000
+    }).addTo(map);
+
+    vehicleAlternate.marker = L.marker(vehicleAlternate.routeCoords[0], {
+      icon: createTruckIcon('blue'),
+      zIndexOffset: 1000
+    }).addTo(map);
+
+    // Bind interactive popups
+    vehiclePrimary.marker.bindPopup(`
+      <div style="padding: 10px;">
+        <div style="font-size: 0.72rem; color: #f97316; font-weight: 800;">● PRIMARY EXPRESS TRUCK</div>
+        <div style="font-weight: 800; font-size: 0.95rem; margin: 2px 0;">TN-01-EXP-9402</div>
+        <div style="font-size: 0.78rem; color: #cbd5e1;">Cargo: Electronics & Auto Components</div>
+        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Destination: <strong>Kanniyakumari Southern Hub</strong></div>
+      </div>
+    `);
+
+    vehicleAlternate.marker.bindPopup(`
+      <div style="padding: 10px;">
+        <div style="font-size: 0.72rem; color: #38bdf8; font-weight: 800;">● WESTERN CORRIDOR FREIGHT</div>
+        <div style="font-weight: 800; font-size: 0.95rem; margin: 2px 0;">TN-38-ALT-5120</div>
+        <div style="font-size: 0.78rem; color: #cbd5e1;">Cargo: Coimbatore Textiles & Machinery</div>
+        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Destination: <strong>Thanjavur & Southern Ports</strong></div>
+      </div>
+    `);
+
+    /* =========================================================================
+       7. SMOOTH ANIMATION ENGINE (requestAnimationFrame)
+    ========================================================================= */
+
+    let isLiveActive = true;
+    let isRoadblockActive = false;
+    let simSpeedMultiplier = 2; // 1x, 2x, 5x
+    let lastTimestamp = performance.now();
+    let frameCount = 0;
+    let fpsTimer = performance.now();
+
+    // Linear interpolation between two coordinates
+    function lerp(start, end, t) {
+      return start + (end - start) * t;
+    }
+
+    // Great circle approximate distance between coordinates (km)
+    function coordDistanceKm(lat1, lon1, lat2, lon2) {
+      const R = 6371; // Earth radius km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function updateVehicle(v, deltaTimeSeconds) {
+      const coords = v.routeCoords;
+      if (v.currentSegment >= coords.length - 1) {
+        // Loop back to start for continuous live stream demo
+        v.currentSegment = 0;
+        v.segmentProgress = 0;
+      }
+
+      const p1 = coords[v.currentSegment];
+      const p2 = coords[v.currentSegment + 1];
+
+      const segmentDistKm = coordDistanceKm(p1[0], p1[1], p2[0], p2[1]);
+      
+      // Dynamic realistic speed fluctuation
+      if (Math.random() < 0.03) {
+        v.targetSpeed = 58 + Math.floor(Math.random() * 20); // 58 - 78 km/h
+      }
+      v.speedKmh += (v.targetSpeed - v.speedKmh) * 0.05;
+
+      // Distance covered this tick in km
+      const distanceCovered = (v.speedKmh * simSpeedMultiplier * deltaTimeSeconds) / 3600;
+      const progressDelta = distanceCovered / Math.max(segmentDistKm, 0.1);
+
+      v.segmentProgress += progressDelta;
+
+      if (v.segmentProgress >= 1.0) {
+        v.segmentProgress = 0;
+        v.currentSegment++;
+        if (v.currentSegment >= coords.length - 1) {
+          v.currentSegment = 0;
+        }
+      }
+
+      // Interpolate current lat/lng
+      const curP1 = coords[v.currentSegment];
+      const curP2 = coords[Math.min(v.currentSegment + 1, coords.length - 1)];
+      const curLat = lerp(curP1[0], curP2[0], v.segmentProgress);
+      const curLng = lerp(curP1[1], curP2[1], v.segmentProgress);
+
+      v.marker.setLatLng([curLat, curLng]);
+
+      // Calculate bearing angle for icon rotation
+      const dLng = (curP2[1] - curP1[1]);
+      const y = Math.sin(dLng * Math.PI / 180) * Math.cos(curP2[0] * Math.PI / 180);
+      const x = Math.cos(curP1[0] * Math.PI / 180) * Math.sin(curP2[0] * Math.PI / 180) -
+                Math.sin(curP1[0] * Math.PI / 180) * Math.cos(curP2[0] * Math.PI / 180) * Math.cos(dLng * Math.PI / 180);
+      const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+
+      const pinEl = document.getElementById(`pin-${v.color}`);
+      if (pinEl) {
+        pinEl.style.transform = `rotate(${Math.round(bearing - 45)}deg)`;
+      }
+
+      // Update sidebar telemetry
+      const remainingSegments = coords.length - 1 - v.currentSegment;
+      const approxDistRemaining = remainingSegments * 80 * (1 - v.segmentProgress);
+      const remainingHours = approxDistRemaining / Math.max(v.speedKmh, 30);
+      const hrs = Math.floor(remainingHours);
+      const mins = Math.floor((remainingHours - hrs) * 60);
+
+      const speedEl = document.getElementById(`${v.elementId}Speed`);
+      const etaEl = document.getElementById(`${v.elementId}Eta`);
+      const waypointEl = document.getElementById(`${v.elementId}Waypoint`);
+
+      if (speedEl) speedEl.innerHTML = `${Math.round(v.speedKmh)} <span style="font-size:0.65rem; color:var(--text-dim);">km/h</span>`;
+      if (etaEl) etaEl.textContent = `${hrs}h ${mins}m`;
+      
+      // Nearest waypoint name
+      const nextStationIndex = Math.min(v.currentSegment + 1, STATIONS.length - 1);
+      if (waypointEl && STATIONS[nextStationIndex]) {
+        waypointEl.textContent = STATIONS[nextStationIndex].name;
+      }
+    }
+
+    function animationLoop(timestamp) {
+      if (!isLiveActive) return;
+
+      const deltaTimeSeconds = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
+      lastTimestamp = timestamp;
+
+      // Update vehicles
+      updateVehicle(vehiclePrimary, deltaTimeSeconds);
+      updateVehicle(vehicleAlternate, deltaTimeSeconds);
+
+      // FPS Counter
+      frameCount++;
+      if (timestamp - fpsTimer >= 1000) {
+        const fps = Math.round((frameCount * 1000) / (timestamp - fpsTimer));
+        const fpsEl = document.getElementById('fpsCounter');
+        if (fpsEl) fpsEl.textContent = `${fps} FPS`;
+        frameCount = 0;
+        fpsTimer = timestamp;
+      }
+
+      requestAnimationFrame(animationLoop);
+    }
+
+    // Start initial loop
+    requestAnimationFrame(animationLoop);
+
+    /* =========================================================================
+       8. DYNAMIC REROUTING & ROADBLOCK LOGIC
+    ========================================================================= */
+
+    function playAudioTone(freq, type, duration) {
+      if (!audioEnabled) return;
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type || 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch(e) {}
+    }
+
+    let audioEnabled = true;
+    document.getElementById('btnSoundToggle').addEventListener('click', function() {
+      audioEnabled = !audioEnabled;
+      this.textContent = audioEnabled ? '🔊 AUDIO ON' : '🔇 AUDIO OFF';
+    });
+
+    function toggleRoadblockState() {
+      isRoadblockActive = !isRoadblockActive;
+      const btnRoadblock = document.getElementById('btnSimulateRoadblock');
+      const toast = document.getElementById('alert-toast');
+      const toastDesc = document.getElementById('alertToastDesc');
+      const primaryTag = document.getElementById('primaryTag');
+      const primaryCorridor = document.getElementById('primaryCorridor');
+
+      if (isRoadblockActive) {
+        // ROADBLOCK ENGAGED
+        btnRoadblock.classList.add('active');
+        document.getElementById('roadblockBtnText').textContent = 'Clear Roadblock (Vellore)';
+
+        // 1. Change blocked primary route style to dashed flashing red
+        primaryPolyline.setStyle({
+          color: '#ef4444',
+          dashArray: '10, 10',
+          weight: 6,
+          opacity: 0.9
+        });
+        primaryPolylineGlow.setStyle({
+          color: '#dc2626',
+          dashArray: '10, 10',
+          opacity: 0.5
+        });
+
+        // 2. Add rerouting diversion polyline connecting to Alternate Route
+        if (reroutingPolyline) map.removeLayer(reroutingPolyline);
+        reroutingPolyline = L.polyline(DIVERTER_ROUTE_COORDS, {
+          color: '#f59e0b',
+          weight: 6,
+          dashArray: '6, 8',
+          opacity: 1
+        }).addTo(map);
+
+        // 3. Switch Primary Truck to Diverter Corridor
+        vehiclePrimary.routeCoords = DIVERTER_ROUTE_COORDS;
+        vehiclePrimary.currentSegment = 0;
+        vehiclePrimary.segmentProgress = 0;
+        vehiclePrimary.isRerouted = true;
+
+        // 4. Update UI & Telemetry
+        primaryTag.textContent = 'DIVERTER ACTIVE';
+        primaryTag.className = 'v-tag rerouting';
+        primaryCorridor.textContent = 'NH 544 Divert';
+        primaryCorridor.style.color = '#ef4444';
+
+        // 5. Trigger Sound and Toast
+        playAudioTone(880, 'sawtooth', 0.4);
+        setTimeout(() => playAudioTone(587, 'sawtooth', 0.5), 200);
+
+        toastDesc.textContent = 'Critical incident at Vellore. Primary corridor halted. Dynamic rerouting initiated via Salem NH 544 (+32km).';
+        toast.classList.add('show');
+        setTimeout(() => { toast.classList.remove('show'); }, 6000);
+
+      } else {
+        // ROADBLOCK CLEARED
+        btnRoadblock.classList.remove('active');
+        document.getElementById('roadblockBtnText').textContent = 'Simulate Roadblock (Vellore)';
+
+        // Restore normal route style
+        primaryPolyline.setStyle({
+          color: '#f97316',
+          dashArray: null,
+          weight: 5,
+          opacity: 0.95
+        });
+        primaryPolylineGlow.setStyle({
+          color: '#ea580c',
+          dashArray: null,
+          opacity: 0.35
+        });
+
+        if (reroutingPolyline) {
+          map.removeLayer(reroutingPolyline);
+          reroutingPolyline = null;
+        }
+
+        // Return Primary truck to standard corridor
+        vehiclePrimary.routeCoords = PRIMARY_ROUTE_COORDS;
+        vehiclePrimary.currentSegment = 0;
+        vehiclePrimary.segmentProgress = 0.2;
+        vehiclePrimary.isRerouted = false;
+
+        primaryTag.textContent = 'Primary Freight';
+        primaryTag.className = 'v-tag primary';
+        primaryCorridor.textContent = 'NH 44/45';
+        primaryCorridor.style.color = '#fb923c';
+
+        playAudioTone(523, 'sine', 0.25);
+        setTimeout(() => playAudioTone(659, 'sine', 0.3), 150);
+
+        toastDesc.textContent = 'Roadblock cleared. Standard NH 44 / NH 45 logistics operations restored.';
+        toast.classList.add('show');
+        setTimeout(() => { toast.classList.remove('show'); }, 4000);
+      }
+    }
+
+    document.getElementById('btnSimulateRoadblock').addEventListener('click', toggleRoadblockState);
+
+    /* =========================================================================
+       9. BUTTON & INTERACTION CONTROLS
+    ========================================================================= */
+
+    // Start / Pause Feed
+    const btnStart = document.getElementById('btnStartFeed');
+    const btnPause = document.getElementById('btnPauseFeed');
+    const statusText = document.getElementById('telemetryStatusText');
+
+    btnStart.addEventListener('click', () => {
+      if (!isLiveActive) {
+        isLiveActive = true;
+        lastTimestamp = performance.now();
+        requestAnimationFrame(animationLoop);
+        statusText.textContent = 'LIVE FEED ACTIVE (60 FPS)';
+        btnStart.className = 'action-btn btn-feed-start';
+        btnPause.className = 'action-btn btn-feed-pause';
+        playAudioTone(440, 'triangle', 0.15);
+      }
+    });
+
+    btnPause.addEventListener('click', () => {
+      isLiveActive = false;
+      statusText.textContent = 'FEED PAUSED';
+      btnStart.className = 'action-btn btn-feed-pause';
+      btnPause.className = 'action-btn btn-feed-start';
+      playAudioTone(330, 'triangle', 0.15);
+    });
+
+    // Speed multiplier buttons
+    document.querySelectorAll('.btn-speed[data-speed]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.btn-speed[data-speed]').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        simSpeedMultiplier = parseInt(this.getAttribute('data-speed'));
+        playAudioTone(600, 'sine', 0.1);
+      });
+    });
+
+    // Vehicle focus helper
+    window.focusVehicle = function(type) {
+      const v = type === 'primary' ? vehiclePrimary : vehicleAlternate;
+      const latLng = v.marker.getLatLng();
+      map.flyTo(latLng, 10, { duration: 1.2 });
+      v.marker.openPopup();
+      playAudioTone(500, 'sine', 0.1);
+    };
+
+    // Fly to hazard
+    window.flyToHazard = function(lat, lng, name) {
+      map.flyTo([lat, lng], 11, { duration: 1.2 });
+      playAudioTone(450, 'sawtooth', 0.15);
+    };
+
+    // Close toast button click
+    document.getElementById('alert-toast').addEventListener('click', function() {
+      this.classList.remove('show');
+    });
+
+    // Real-Time Live Weather Feed (Open-Meteo Integration)
+    async function updateLiveWeather() {
+      try {
+        const res = await fetch('/api/weather/live');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.stations && data.stations.length > 0) {
+            const st = data.stations[0];
+            const textEl = document.getElementById('weatherText');
+            const iconEl = document.getElementById('weatherIcon');
+            if (textEl) textEl.textContent = `${st.district.toUpperCase()}: ${st.temperature}°C • ${st.condition.toUpperCase()}`;
+            if (iconEl) {
+              if (st.conditionType === 'clear') iconEl.textContent = '☀️';
+              else if (st.conditionType.includes('rain')) iconEl.textContent = '🌧️';
+              else if (st.conditionType.includes('cloud')) iconEl.textContent = '⛅';
+              else iconEl.textContent = '🌤️';
+            }
+          }
+        }
+      } catch (err) {
+        console.debug('Weather telemetry update catch:', err);
+      }
+    }
+    updateLiveWeather();
+    setInterval(updateLiveWeather, 3 * 60 * 1000);
+
+  </script>
+</body>
+</html>

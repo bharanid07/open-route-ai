@@ -1,0 +1,76 @@
+[
+  {
+    "id": "user_admin_01",
+    "name": "Thiru. Bharanidharan",
+    "email": "admin@smartpath.tn.gov.in",
+    "passwordHash": "b7dcd50d820d10353eac43663c00c4227538a07cc5dc527d2c024a8cde888dea",
+    "role": "commander",
+    "district": "Chennai",
+    "designation": "State Logistics Chief Director",
+    "createdAt": "2026-10-05T13:35:23.139Z",
+    "lastLoginAt": "2026-10-05T13:35:23.139Z"
+  },
+  {
+    "id": "user_cbe_02",
+    "name": "Coimbatore Dispatch Officer",
+    "email": "officer@coimbatore.tn.gov.in",
+    "passwordHash": "c8bbc9f07fbe01681c9b989a79f9f9f968df9a72c3e303d5a92a5b568571a2cb",
+    "role": "commander",
+    "district": "Coimbatore",
+    "designation": "Senior Freight Dispatcher (NH 544)",
+    "createdAt": "2026-10-05T13:35:23.139Z"
+  },
+  {
+    "id": "user_transit_03",
+    "name": "Accessible Transit Coordinator",
+    "email": "transit@chennai.tn.gov.in",
+    "passwordHash": "5e761e2a1d05454fa655b68c9571d970f8a36ae0b922e18a1dab7edda11fdf01",
+    "role": "navigator",
+    "district": "Chennai",
+    "designation": "Universal Accessibility Lead Officer",
+    "createdAt": "2026-10-05T13:35:23.139Z"
+  },
+  {
+    "id": "user_planner_04",
+    "name": "State Infrastructure Planner",
+    "email": "planner@tndc.gov.in",
+    "passwordHash": "207841efc6d05227cc9f0fa09f74e225d692336a3c7d3b54eb759a00229f15c9",
+    "role": "planner",
+    "district": "Salem",
+    "designation": "38-District Highway Corridor Analyst",
+    "createdAt": "2026-10-05T13:35:23.139Z"
+  },
+  {
+    "id": "usr_1791207354387_cq8bk",
+    "name": "Bharani Test",
+    "email": "test@smartpath.tn",
+    "passwordHash": "a8236c9c7b80cf08bc485ddb1f84ba92ce5c3c4c41ed0eed54d7a112b0180cc4",
+    "role": "commander",
+    "district": "Coimbatore",
+    "designation": "Operations Member",
+    "createdAt": "2026-10-05T13:35:54.387Z",
+    "lastLoginAt": "2026-10-05T13:36:25.113Z"
+  },
+  {
+    "id": "usr_1791208186407_n0qo0",
+    "name": "Officer Senthil",
+    "email": "senthil@tn.gov.in",
+    "passwordHash": "a8236c9c7b80cf08bc485ddb1f84ba92ce5c3c4c41ed0eed54d7a112b0180cc4",
+    "role": "commander",
+    "district": "Coimbatore",
+    "designation": "Operations Member",
+    "createdAt": "2026-10-05T13:49:46.407Z",
+    "lastLoginAt": "2026-10-05T13:49:52.691Z"
+  },
+  {
+    "id": "usr_1791211561924_ugpyp",
+    "name": "dharun",
+    "email": "dhharunn96@gmail.com",
+    "passwordHash": "94f8c5a32ca74cd8183268673860badaeae23963d3350e863bb11d4b46ae773a",
+    "role": "commander",
+    "district": "Coimbatore",
+    "designation": "Logistics Dispatch Officer",
+    "createdAt": "2026-10-05T14:46:01.924Z",
+    "lastLoginAt": "2026-10-05T14:46:01.924Z"
+  }
+]
